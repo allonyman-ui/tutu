@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Surf Session Predictor 🌊</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(160deg, #0a3d62 0%, #0d6e8c 40%, #1abc9c 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 60px;
+      color: #fff;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    }
+
+    header p {
+      margin-top: 8px;
+      font-size: 1rem;
+      opacity: 0.85;
+    }
+
+    /* ── Search card ── */
+    .search-card {
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 20px;
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    #beach-input {
+      flex: 1;
+      padding: 14px 18px;
+      border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    #beach-input::placeholder {
+      color: rgba(255,255,255,0.6);
+    }
+
+    #beach-input:focus {
+      border-color: rgba(255,255,255,0.7);
+    }
+
+    #check-btn {
+      padding: 14px 20px;
+      border-radius: 12px;
+      border: none;
+      background: #1abc9c;
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 4px 14px rgba(26,188,156,0.45);
+    }
+
+    #check-btn:hover {
+      background: #17a589;
+    }
+
+    #check-btn:active {
+      transform: scale(0.97);
+    }
+
+    #check-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* ── Error ── */
+    #error-msg {
+      display: none;
+      margin-top: 14px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(231, 76, 60, 0.3);
+      border: 1px solid rgba(231,76,60,0.5);
+      font-size: 0.9rem;
+      color: #ffeaea;
+    }
+
+    /* ── Result card ── */
+    #result-card {
+      display: none;
+      width: 100%;
+      max-width: 520px;
+      margin-top: 28px;
+      background: rgba(255,255,255,0.13);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      animation: slideUp 0.35s ease;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-location {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Stats grid ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat-box {
+      background: rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 16px 12px;
+      text-align: center;
+    }
+
+    .stat-icon {
+      font-size: 1.5rem;
+      margin-bottom: 6px;
+    }
+
+    .stat-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      opacity: 0.75;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    /* ── Rating badge ── */
+    .rating-badge {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 20px;
+      border-radius: 14px;
+      margin-bottom: 16px;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .rating-badge.good {
+      background: rgba(39, 174, 96, 0.28);
+      border: 1px solid rgba(39,174,96,0.45);
+    }
+
+    .rating-badge.okay {
+      background: rgba(243, 156, 18, 0.28);
+      border: 1px solid rgba(243,156,18,0.45);
+    }
+
+    .rating-badge.poor {
+      background: rgba(231, 76, 60, 0.28);
+      border: 1px solid rgba(231,76,60,0.45);
+    }
+
+    .rating-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .good  .rating-dot { background: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+    .okay  .rating-dot { background: #f39c12; box-shadow: 0 0 8px #f39c12; }
+    .poor  .rating-dot { background: #e74c3c; box-shadow: 0 0 8px #e74c3c; }
+
+    /* ── Tip ── */
+    .surf-tip {
+      font-size: 0.92rem;
+      opacity: 0.88;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.09);
+      border-radius: 10px;
+      border-left: 3px solid rgba(255,255,255,0.35);
+      line-height: 1.5;
+    }
+
+    .surf-tip::before {
+      content: "💡 ";
+    }
+
+    /* ── Loader ── */
+    .loader {
+      display: none;
+      margin-top: 20px;
+      text-align: center;
+      font-size: 0.95rem;
+      opacity: 0.8;
+    }
+
+    .loader .spinner {
+      display: inline-block;
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(255,255,255,0.25);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 48px;
+      font-size: 0.78rem;
+      opacity: 0.55;
+      text-align: center;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 420px) {
+      .input-row { flex-direction: column; }
+      .stats-grid { grid-template-columns: repeat(3, 1fr); }
+      .stat-value { font-size: 0.9rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Surf Session Predictor 🌊</h1>
+    <p>Find out if today is worth paddling out</p>
+  </header>
+
+  <!-- Search -->
+  <div class="search-card">
+    <div class="input-row">
+      <input
+        id="beach-input"
+        type="text"
+        placeholder="Beach name or city (e.g. Bondi Beach)"
+        autocomplete="off"
+      />
+      <button id="check-btn">Check Surf Conditions</button>
+    </div>
+    <div id="error-msg"></div>
+  </div>
+
+  <!-- Loader -->
+  <div class="loader" id="loader">
+    <span class="spinner"></span> Fetching surf data…
+  </div>
+
+  <!-- Result -->
+  <div id="result-card">
+    <div class="result-location" id="result-location"></div>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-icon">💨</div>
+        <div class="stat-label">Wind Speed</div>
+        <div class="stat-value" id="stat-wind"></div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-icon">🧭</div>
+        <div class="stat-label">Wind Dir.</div>
+        <div class="stat-value" id="stat-wind-dir"></div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-icon">🌊</div>
+        <div class="stat-label">Wave Height</div>
+        <div class="stat-value" id="stat-wave"></div>
+      </div>
+    </div>
+    <div class="rating-badge" id="rating-badge">
+      <div class="rating-dot"></div>
+      <span id="rating-text"></span>
+    </div>
+    <div class="surf-tip" id="surf-tip"></div>
+  </div>
+
+  <footer>Weather data via Open-Meteo &nbsp;·&nbsp; Wave data estimated from weather model</footer>
+
+  <script>
+    // ── Constants ──────────────────────────────────────────────────────────────
+
+    // Open-Meteo is completely free and requires no API key.
+    // We use their geocoding API to resolve beach/city names to coordinates,
+    // then their marine + weather forecast APIs for the actual data.
+    const GEO_URL  = 'https://geocoding-api.open-meteo.com/v1/search';
+    const MARINE_URL = 'https://marine-api.open-meteo.com/v1/marine';
+    const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    /**
+     * Convert degrees to a compass direction string.
+     * @param {number} deg
+     * @returns {string}
+     */
+    function degreesToCompass(deg) {
+      const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+      return dirs[Math.round(deg / 45) % 8];
+    }
+
+    /**
+     * Build the surf rating object from wind speed and wave height.
+     * @param {number} windKph  wind speed in km/h
+     * @param {number} waveM    wave height in metres
+     * @returns {{ cls: string, label: string, tip: string }}
+     */
+    function calcRating(windKph, waveM) {
+      if (windKph < 10 && waveM >= 0.8 && waveM <= 2.0) {
+        return {
+          cls: 'good',
+          label: 'Good for Surfing 🟢',
+          tip: 'Clean waves and light wind — great session ahead. Get out there!',
+        };
+      }
+      if (windKph <= 20) {
+        return {
+          cls: 'okay',
+          label: 'Okay Conditions 🟡',
+          tip: 'Conditions are rideable but not perfect. Expect some chop — still worth a paddle.',
+        };
+      }
+      return {
+        cls: 'poor',
+        label: 'Poor Surf Conditions 🔴',
+        tip: 'Strong wind today — maybe wait for tomorrow. Check the forecast again in the evening.',
+      };
+    }
+
+    // ── Main logic ─────────────────────────────────────────────────────────────
+
+    async function fetchSurfData(query) {
+      // 1. Geocode the location
+      const geoRes = await fetch(
+        `${GEO_URL}?name=${encodeURIComponent(query)}&count=1&language=en&format=json`
+      );
+      if (!geoRes.ok) throw new Error('Geocoding request failed.');
+      const geoData = await geoRes.json();
+
+      if (!geoData.results || geoData.results.length === 0) {
+        throw new Error(`Could not find a location matching "${query}". Try a nearby city.`);
+      }
+
+      const loc = geoData.results[0];
+      const { latitude, longitude } = loc;
+      const displayName = [loc.name, loc.admin1, loc.country].filter(Boolean).join(', ');
+
+      // 2. Fetch marine data (wave height) + weather data in parallel
+      const [marineRes, weatherRes] = await Promise.all([
+        fetch(
+          `${MARINE_URL}?latitude=${latitude}&longitude=${longitude}` +
+          `&hourly=wave_height&forecast_days=1&timezone=auto`
+        ),
+        fetch(
+          `${WEATHER_URL}?latitude=${latitude}&longitude=${longitude}` +
+          `&current=wind_speed_10m,wind_direction_10m,weather_code&wind_speed_unit=kmh&timezone=auto`
+        ),
+      ]);
+
+      if (!weatherRes.ok) throw new Error('Weather data request failed.');
+      const weatherData = await weatherRes.json();
+
+      // Extract current weather
+      const windKph  = weatherData.current?.wind_speed_10m ?? null;
+      const windDeg  = weatherData.current?.wind_direction_10m ?? null;
+
+      if (windKph === null) throw new Error('Could not parse wind data from the API response.');
+
+      // 3. Wave height — try marine API first, fall back to estimate
+      let waveM = null;
+      let waveSource = 'estimated';
+
+      if (marineRes.ok) {
+        const marineData = await marineRes.json();
+        // Pick the value closest to the current hour
+        const waveHeights = marineData.hourly?.wave_height;
+        if (waveHeights && waveHeights.length > 0) {
+          // Find current hour index using the time array
+          const times = marineData.hourly?.time ?? [];
+          const now = new Date();
+          let bestIdx = 0;
+          let bestDiff = Infinity;
+          times.forEach((t, i) => {
+            const diff = Math.abs(new Date(t) - now);
+            if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+          });
+          const rawWave = waveHeights[bestIdx];
+          if (rawWave !== null && rawWave !== undefined) {
+            waveM = rawWave;
+            waveSource = 'marine model';
+          }
+        }
+      }
+
+      // Fallback: rough heuristic — wind speed loosely correlates with swell
+      if (waveM === null) {
+        waveM = parseFloat((0.5 + (windKph / 40)).toFixed(1));
+        waveSource = 'simulated';
+      }
+
+      return { displayName, windKph, windDeg, waveM, waveSource };
+    }
+
+    // ── UI ─────────────────────────────────────────────────────────────────────
+
+    const beachInput  = document.getElementById('beach-input');
+    const checkBtn    = document.getElementById('check-btn');
+    const errorMsg    = document.getElementById('error-msg');
+    const loader      = document.getElementById('loader');
+    const resultCard  = document.getElementById('result-card');
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.style.display = 'block';
+    }
+
+    function hideError() {
+      errorMsg.style.display = 'none';
+      errorMsg.textContent = '';
+    }
+
+    async function handleCheck() {
+      const query = beachInput.value.trim();
+      if (!query) {
+        showError('Please enter a beach name or city.');
+        return;
+      }
+
+      hideError();
+      resultCard.style.display = 'none';
+      loader.style.display = 'block';
+      checkBtn.disabled = true;
+
+      try {
+        const { displayName, windKph, windDeg, waveM, waveSource } = await fetchSurfData(query);
+
+        const rating = calcRating(windKph, waveM);
+
+        // Populate result card
+        document.getElementById('result-location').innerHTML =
+          `📍 ${displayName}`;
+
+        document.getElementById('stat-wind').textContent =
+          `${windKph.toFixed(1)} km/h`;
+
+        document.getElementById('stat-wind-dir').textContent =
+          windDeg !== null ? degreesToCompass(windDeg) : '—';
+
+        document.getElementById('stat-wave').textContent =
+          `${waveM.toFixed(1)} m`;
+        // Add small note if wave data was simulated
+        if (waveSource !== 'marine model') {
+          document.getElementById('stat-wave').innerHTML +=
+            `<br><span style="font-size:0.65rem;opacity:0.65">(${waveSource})</span>`;
+        }
+
+        const badge = document.getElementById('rating-badge');
+        badge.className = `rating-badge ${rating.cls}`;
+        document.getElementById('rating-text').textContent = rating.label;
+        document.getElementById('surf-tip').textContent = rating.tip;
+
+        loader.style.display = 'none';
+        resultCard.style.display = 'block';
+
+      } catch (err) {
+        loader.style.display = 'none';
+        showError(err.message || 'Something went wrong. Please try again.');
+      } finally {
+        checkBtn.disabled = false;
+      }
+    }
+
+    checkBtn.addEventListener('click', handleCheck);
+    beachInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleCheck();
+    });
+  </script>
+</body>
+</html>
